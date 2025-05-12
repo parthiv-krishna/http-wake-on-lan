@@ -1,9 +1,11 @@
 import argparse
-import flask
 import json
 import socket
 
+import flask
+
 app = flask.Flask(__name__)
+
 
 def send_wake_on_lan(mac: str, broadcast_ip: str, port: int = 9) -> None:
     """
@@ -37,19 +39,26 @@ def send_wake_on_lan(mac: str, broadcast_ip: str, port: int = 9) -> None:
     except ValueError as e:
         raise ValueError(f"Invalid MAC address format: {mac}") from e
 
+
 @app.route("/wol", methods=["GET", "POST"])
 def wol():
     # testing
     print(app.config)
     print("Host: ", flask.request.headers["Host"])
-    
+
     # For ForwardAuth middleware, return 2xx status to allow the request to proceed
     return "", 200
 
 
 def main():
     args = argparse.ArgumentParser()
-    args.add_argument("--config", type=str, required=False, default="config.json", help="Path to the configuration file")
+    args.add_argument(
+        "--config",
+        type=str,
+        required=False,
+        default="config.json",
+        help="Path to the configuration file",
+    )
     args = args.parse_args()
 
     with open(args.config, "r") as f:

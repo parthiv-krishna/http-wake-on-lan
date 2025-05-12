@@ -15,7 +15,6 @@
         pkgs = inputs.nixpkgs.legacyPackages.${system};
         pythonEnv = pkgs.python311.withPackages (ps: [
           ps.flask
-          ps.requests
         ]);
       in
       {
