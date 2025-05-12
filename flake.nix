@@ -13,8 +13,9 @@
       system:
       let
         pkgs = inputs.nixpkgs.legacyPackages.${system};
-        pythonEnv = pkgs.python311.withPackages (ps: [
-          ps.flask
+        pythonEnv = pkgs.python311.withPackages (ps: with ps; [
+          flask
+          requests
         ]);
       in
       {

@@ -1,11 +1,14 @@
 import argparse
 import json
+import logging
+import re
 import socket
 
 import flask
+import requests
 
 app = flask.Flask(__name__)
-
+logging.basicConfig(level=logging.INFO)
 
 def send_wake_on_lan(mac: str, broadcast_ip: str, port: int = 9) -> None:
     """
@@ -40,14 +43,49 @@ def send_wake_on_lan(mac: str, broadcast_ip: str, port: int = 9) -> None:
         raise ValueError(f"Invalid MAC address format: {mac}") from e
 
 
+def check_service_awake(status_url: str) -> bool:
+    try:
+        _ = requests.get(status_url, timeout=1)
+        # return true if we get any response
+        return True
+    except requests.exceptions.Timeout:
+        # return false if timed out
+        return False
+
+def get_machine_from_host(host: str) -> str:
+    for service, machine in app.config["services"].items():
+        if re.match(f"^{service}$", host):
+            return machine
+    return None
+
+
 @app.route("/wol", methods=["GET", "POST"])
 def wol():
-    # testing
-    print(app.config)
-    print("Host: ", flask.request.headers["Host"])
+    # ensure we have a valid host header
+    if "Host" not in flask.request.headers:
+        errmsg = "No Host header found. Not sending WOL packet."
+        logging.warning(errmsg)
+        return errmsg, 400
 
-    # For ForwardAuth middleware, return 2xx status to allow the request to proceed
-    return "", 200
+    # determine the machine to wake up
+    machine = get_machine_from_host(flask.request.headers["Host"])
+    if machine is None:
+        errmsg = f"Host {flask.request.headers['Host']} not in services. Not sending WOL packet."
+        logging.warning(errmsg)
+        return errmsg, 404
+
+    # send the WOL packet until the service is awake
+    awake = False
+    while not awake:
+        logging.info(f"Sending WOL packet to {machine}")
+        send_wake_on_lan(
+            app.config["machines"][machine]["mac"],
+            app.config["machines"][machine]["broadcast_ip"],
+        )
+        awake = check_service_awake(app.config["machines"][machine]["status_url"])
+
+    logging.info(f"Woke up {machine}")
+    return f"Woke up {machine}", 200
 
 
 def main():
